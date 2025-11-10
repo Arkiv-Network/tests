@@ -32,7 +32,6 @@ cp "$SCRIPT_DIR/locust-arkiv.service.template" /tmp/locust-arkiv.service
 
 # Replace placeholders in the service file
 ENV_FILE="$SCRIPT_DIR/../.env-public"
-LOCUST_FILE="$SCRIPT_DIR/../$LOCUST_FILE"
 
 sed -i "s|ENV_FILE_PLACEHOLDER|$ENV_FILE|g" /tmp/locust-arkiv.service
 sed -i "s|WORKING_DIRECTORY_PLACEHOLDER|$WORKING_DIRECTORY|g" /tmp/locust-arkiv.service
@@ -41,10 +40,13 @@ sed -i "s|LOCUST_FILE_PLACEHOLDER|$LOCUST_FILE|g" /tmp/locust-arkiv.service
 sudo mv /tmp/locust-arkiv.service /etc/systemd/system/locust-arkiv.service
 echo "Locust master systemd service created."
 
-# If service was running before, restart daemon and reload the service
+# Always reload daemon after updating service file
+echo "Reloading systemd daemon..."
+sudo systemctl daemon-reload
+
+# If service was running before, restart it to pick up changes
 if [ "$SERVICE_WAS_RUNNING" = true ]; then
-    echo "Reloading daemon and restarting service..."
-    sudo systemctl daemon-reload
+    echo "Restarting service to apply changes..."
     sudo systemctl restart locust-arkiv.service
     echo "Service restarted."
 fi
