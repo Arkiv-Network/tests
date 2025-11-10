@@ -1,4 +1,5 @@
-from testcontainers.core.container import DockerContainer, wait_for_logs
+from testcontainers.core.container import DockerContainer
+from testcontainers.core.waiting_utils import wait_for_logs
 
 def launch_image(image_to_run: str):
     port = 8545
