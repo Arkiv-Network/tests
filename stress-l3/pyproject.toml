@@ -1,0 +1,28 @@
+[project]
+name = "stress-arkiv-l3"
+version = "0.2.0"
+description = "Stress test for Arkiv L3"
+authors = [
+    {name = "Arkiv",email = "arkiv@arkiv.network"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4"
+dependencies = [
+    "golem-base-sdk (>=0.0.7,<0.0.8)",
+    "arkiv-sdk",
+    "locust (>=2.37.14,<3.0.0)",
+    "environs (>=14.2.0,<15.0.0)",
+    "testcontainers (>=4.12.0,<5.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.locust]
+host = "http://localhost:8545"
+users = 5

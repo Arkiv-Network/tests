@@ -1,0 +1,25 @@
+{
+  "name": "e2e-explorer",
+  "version": "1.0.0",
+  "description": "This package contains Playwright end-to-end smoke tests for the Kaolin explorer at [https://explorer.kaolin.hoodi.arkiv.network/](https://explorer.kaolin.hoodi.arkiv.network/).",
+  "main": "index.js",
+  "scripts": {
+    "lint": "biome check tests/",
+    "lint:fix": "biome check --write tests/",
+    "test": "bunx playwright test",
+    "test:e2e": "bunx playwright test",
+    "test:headed": "bunx playwright test --headed",
+    "codegen": "bunx playwright codegen"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@arkiv-network/sdk": "^0.3.1",
+    "@biomejs/biome": "^2.3.4",
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.10.0",
+    "dotenv": "^17.2.3"
+  }
+}

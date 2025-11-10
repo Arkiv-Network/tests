@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowJs": false,
+    "types": ["node", "@playwright/test"]
+  },
+  "include": ["tests/**/*.ts", "tests/**/*.spec.ts", "playwright.config.ts"]
+}
+

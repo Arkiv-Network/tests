@@ -1,0 +1,19 @@
+// Playwright artifacts
+playwright-report/
+test-results/
+
+// Node modules
+node_modules/
+
+// Bun
+bun.lockb
+
+// NPM
+package-lock.json
+
+// Environment variables
+.env
+
+.vscode/
+.idea/
+.DS_Store
