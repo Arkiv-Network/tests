@@ -13,6 +13,13 @@ WORKING_DIRECTORY="${1:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 echo "Setting up Locust master with working directory: $WORKING_DIRECTORY"
 
+# Check if service is already running (before we update the service file)
+SERVICE_WAS_RUNNING=false
+if systemctl is-active --quiet locust-arkiv.service 2>/dev/null; then
+    SERVICE_WAS_RUNNING=true
+    echo "Service is currently running."
+fi
+
 # Install dependencies
 echo "Installing dependencies with Poetry..."
 cd "$WORKING_DIRECTORY"
@@ -33,4 +40,12 @@ sed -i "s|LOCUST_FILE_PLACEHOLDER|$LOCUST_FILE|g" /tmp/locust-arkiv.service
 
 sudo mv /tmp/locust-arkiv.service /etc/systemd/system/locust-arkiv.service
 echo "Locust master systemd service created."
+
+# If service was running before, restart daemon and reload the service
+if [ "$SERVICE_WAS_RUNNING" = true ]; then
+    echo "Reloading daemon and restarting service..."
+    sudo systemctl daemon-reload
+    sudo systemctl restart locust-arkiv.service
+    echo "Service restarted."
+fi
 
