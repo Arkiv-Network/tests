@@ -5,7 +5,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source master environment configuration
-source "$SCRIPT_DIR/.env-master.sh"
+source "$SCRIPT_DIR/master-env.sh"
 
 # Allow command line arguments to override env variables
 # Default working directory is the stress-l3 root directory

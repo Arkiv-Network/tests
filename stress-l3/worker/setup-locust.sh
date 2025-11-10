@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKING_DIRECTORY="${3:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 # Source master environment configuration for MASTER_HOST and MASTER_PORT
-source "$SCRIPT_DIR/../master/.env-master.sh"
+source "$SCRIPT_DIR/../master/master-env.sh"
 echo "Setting up Locust with master host: $MASTER_HOST, master port: $MASTER_PORT and working directory: $WORKING_DIRECTORY"
 
 # Create locust service file with parameterized master host and working directory
