@@ -1,10 +1,18 @@
 #!/bin/bash
 # Setup Locust service
 
+# Function to normalize paths (resolve to absolute path without ..)
+normalize_path() {
+    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Default working directory is the stress-l3 root directory
-WORKING_DIRECTORY="${3:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+# Get the stress-l3 root directory (parent of worker directory) and normalize it
+STRESS_L3_DIR="$(normalize_path "$SCRIPT_DIR/..")"
+# Working directory is the stress-l3 root directory
+WORKING_DIRECTORY="$STRESS_L3_DIR"
+
 
 # Source master environment configuration for MASTER_HOST and MASTER_PORT
 source "$SCRIPT_DIR/../master/master-env.sh"
@@ -15,9 +23,8 @@ echo "Creating locust systemd service..."
 cp "$SCRIPT_DIR/locust.service.template" /tmp/locust.service
 
 # Replace placeholders in the service file
-# .env-public and LOCUST_FILE are in stress-l3 root
-ENV_FILE="$SCRIPT_DIR/../.env-public"
-LOCUST_FILE="$SCRIPT_DIR/../$LOCUST_FILE"
+# STRESS_L3_DIR is already normalized, so paths built from it are already absolute
+ENV_FILE="$STRESS_L3_DIR/.env-public"
 
 sed -i "s|ENV_FILE_PLACEHOLDER|$ENV_FILE|g" /tmp/locust.service
 sed -i "s|WORKING_DIRECTORY_PLACEHOLDER|$WORKING_DIRECTORY|g" /tmp/locust.service
