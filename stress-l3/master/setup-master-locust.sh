@@ -13,6 +13,12 @@ WORKING_DIRECTORY="${1:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 
 echo "Setting up Locust master with working directory: $WORKING_DIRECTORY"
 
+# Install dependencies
+echo "Installing dependencies with Poetry..."
+cd "$WORKING_DIRECTORY"
+poetry install
+echo "Dependencies installed."
+
 # Create locust service file with parameterized working directory
 echo "Creating locust master systemd service..."
 cp "$SCRIPT_DIR/locust-arkiv.service.template" /tmp/locust-arkiv.service
