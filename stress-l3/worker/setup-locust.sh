@@ -3,7 +3,14 @@
 
 # Function to normalize paths (resolve to absolute path without ..)
 normalize_path() {
-    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+    local path="$1"
+    if [ -d "$path" ]; then
+        echo "$(cd "$path" && pwd)"
+    else
+        local b=$(basename "$path")
+        local p=$(dirname "$path")
+        echo "$(cd "$p" && pwd)/$b"
+    fi
 }
 
 # Get the directory where this script is located
