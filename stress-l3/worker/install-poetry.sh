@@ -3,7 +3,7 @@
 
 echo "Installing Poetry..."
 
-sudo bash -c 'export PATH="$HOME/.local/bin:$PATH" && curl -sSL https://install.python-poetry.org | python3 -'
+curl -sSL https://install.python-poetry.org | python3 -
 
 # Add poetry to PATH in bashrc
 if ! grep -q '\.local/bin' "$HOME/.bashrc"; then
