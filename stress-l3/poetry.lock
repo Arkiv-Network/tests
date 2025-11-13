@@ -184,14 +184,14 @@ files = [
 
 [[package]]
 name = "arkiv-sdk"
-version = "1.0.0a7"
+version = "1.0.0a5"
 description = "Python SDK for Arkiv networks - Web3.py + Entities"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "arkiv_sdk-1.0.0a7-py3-none-any.whl", hash = "sha256:c6dcc7a86bf50440afcfa4a673fe7bb6f82d590bf7d82750836cb145876b5f5b"},
-    {file = "arkiv_sdk-1.0.0a7.tar.gz", hash = "sha256:4e2c9c16f814e1a4af2d62ea26a625bb4f0c4ad907fc57f86e1ad36696335993"},
+    {file = "arkiv_sdk-1.0.0a5-py3-none-any.whl", hash = "sha256:a37ae8e50d86d22379bc5187c9762decac8390f350c8a960d18f1e3a87b11bae"},
+    {file = "arkiv_sdk-1.0.0a5.tar.gz", hash = "sha256:39393de91190709f945edee0fa57a12f3f86012936b889a92555dec3f1d37023"},
 ]
 
 [package.dependencies]
@@ -3861,4 +3861,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4"
-content-hash = "54560f4a76b8461d475b506ec674a7c03637fcee5f14f29353c3ea1800455635"
+content-hash = "969ef6ef3381d32734f1423c035a0fc74b6fee2ac9799cfc348d21cdcf744244"
