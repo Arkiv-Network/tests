@@ -7,10 +7,12 @@ async function main() {
   console.log(`Creating ${NUM_ENTITIES} entities...`);
 
   const startTime = Date.now();
-  const createdEntities = await createManyEntities(NUM_ENTITIES);
+  const { createdEntities, txHash } = await createManyEntities(NUM_ENTITIES);
   const duration = Date.now() - startTime;
 
-  console.log(`✓ Created ${createdEntities.length} entities in ${duration}ms`);
+  console.log(
+    `✓ Created ${createdEntities.length} entities in ${duration}ms (tx: ${txHash})`
+  );
 
   // Save to file for k6 to load
   writeFileSync(

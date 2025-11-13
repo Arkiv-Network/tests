@@ -16,7 +16,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@arkiv-network/sdk": "0.3.2-dev.1",
+    "@arkiv-network/sdk": "^0.4.2",
     "dotenv-cli": "^11.0.0"
   }
 }

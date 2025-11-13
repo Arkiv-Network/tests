@@ -1,5 +1,5 @@
 import { createWalletClient, http as httpTransport } from "@arkiv-network/sdk";
-import { kaolin } from "@arkiv-network/sdk/chains";
+import { kaolin, mendoza } from "@arkiv-network/sdk/chains";
 import { privateKeyToAccount } from "@arkiv-network/sdk/accounts";
 import { ExpirationTime, jsonToPayload } from "@arkiv-network/sdk/utils";
 
@@ -9,10 +9,17 @@ if (!privateKey) {
   throw new Error("PRIVATE_KEY is not set in the .env file.");
 }
 
+const network = process.env.NETWORK ?? "mendoza";
+if (network !== "mendoza" && network !== "kaolin") {
+  throw new Error(
+    `Unsupported NETWORK: ${network}. Supported: mendoza, kaolin`
+  );
+}
+
 const account = privateKeyToAccount(privateKey as `0x${string}`);
 
 export const arkivClient = createWalletClient({
-  chain: kaolin,
+  chain: network === "mendoza" ? mendoza : kaolin,
   transport: httpTransport(),
   account,
 });
@@ -38,5 +45,5 @@ export async function createManyEntities(numEntities: number) {
     creates: createPayloads,
   });
 
-  return result.createdEntities;
+  return result;
 }
