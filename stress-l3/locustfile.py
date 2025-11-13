@@ -57,7 +57,7 @@ def on_test_stop(environment, **kwargs):
         logging.info(f"A new test is ending and the container is stopped")
 
 class ArkivL3User(JsonRpcUser):
-    wait_time = between(1, 3)
+    wait_time = between(5, 10)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.id = 0
