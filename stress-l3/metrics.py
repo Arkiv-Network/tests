@@ -9,7 +9,7 @@ PUSHGATEWAY_PORT = os.getenv("PUSHGATEWAY_PORT", "9092")
 PUSHGATEWAY_BASE_URL = f"https://{PUSHGATEWAY_HOST}:{PUSHGATEWAY_PORT}"
 JOB_NAME = os.getenv("JOB_NAME", "arkiv-stress-l3")
 INSTANCE_ID = os.getenv("INSTANCE_ID", None)
-DEFAULT_PUSH_INTERVAL = 5  # Default interval in seconds for pushing metrics
+DEFAULT_PUSH_INTERVAL = 1  # Default interval in seconds for pushing metrics
 
 # Global metrics instance
 _metrics_instance = None
