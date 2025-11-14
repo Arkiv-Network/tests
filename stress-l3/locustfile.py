@@ -4,6 +4,7 @@ import itertools
 import time
 import uuid
 import random
+import socket
 
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
@@ -16,6 +17,7 @@ import web3
 from eth_account import Account
 import config
 from utils import launch_image, build_account_path
+from metrics import get_metrics, reset_global_metrics
 
 # JSON data as one-line Python string
 bigger_payload = b'{"offer":{"constraints":"(&\\n  (golem.srv.comp.expiration>1653219330118)\\n  (golem.node.debug.subnet=0987)\\n)","offerId":"7f2f81f213dd48549e080d774dbf1bc2-076a8cbae6546e5f158e5b4d3a869f25a8e2ae426279a691e7ee45315efa3d83","properties":{"golem":{"activity":{"caps":{"transfer":{"protocol":["http","https","gftp"]}}},"com":{"payment":{"debit-notes":{"accept-timeout?":240},"platform":{"erc20-rinkeby-tglm":{"address":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23"},"zksync-rinkeby-tglm":{"address":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23"}}},"pricing":{"model":{"@tag":"linear","linear":{"coeffs":[0.0002777777777777778,0.001388888888888889,0.0]}}},"scheme":"payu","usage":{"vector":["golem.usage.duration_sec","golem.usage.cpu_sec"]}},"inf":{"cpu":{"architecture":"x86_64","capabilities":["sse3","pclmulqdq","dtes64","monitor","dscpl","vmx","eist","tm2","ssse3","fma","cmpxchg16b","pdcm","pcid","sse41","sse42","x2apic","movbe","popcnt","tsc_deadline","aesni","xsave","osxsave","avx","f16c","rdrand","fpu","vme","de","pse","tsc","msr","pae","mce","cx8","apic","sep","mtrr","pge","mca","cmov","pat","pse36","clfsh","ds","acpi","mmx","fxsr","sse","sse2","ss","htt","tm","pbe","fsgsbase","adjust_msr","smep","rep_movsb_stosb","invpcid","deprecate_fpu_cs_ds","mpx","rdseed","rdseed","adx","smap","clflushopt","processor_trace","sgx","sgx_lc"],"cores":6,"model":"Stepping 10 Family 6 Model 158","threads":11,"vendor":"GenuineIntel"},"mem":{"gib":28.0},"storage":{"gib":57.276745605468754}},"node":{"debug":{"subnet":"0987"},"id":{"name":"nieznanysprawiciel-laptop-Provider-2"}},"runtime":{"capabilities":["vpn"],"name":"vm","version":"0.2.10"},"srv":{"caps":{"multi-activity":true}}}},"providerId":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23","timestamp":"2022-05-22T11:35:49.290821396Z"},"proposedSignature":"NoSignature","state":"Pending","timestamp":"2022-05-22T11:35:49.290821396Z","validTo":"2022-05-22T12:35:49.280650Z"}'
@@ -39,6 +41,11 @@ def topup_local_account(account: LocalAccount, w3: Web3):
 gb_container = None
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
+    reset_global_metrics()
+    metrics = get_metrics()
+    metrics.initialize(instance_id=socket.gethostname())
+    metrics.set_loadtest_status('running')
+    
     logging.info(f"A new test is starting with nr of users {environment.runner.target_user_count}")
     global id_iterator
     id_iterator = itertools.count(0)
@@ -50,6 +57,10 @@ def on_test_start(environment, **kwargs):
 
 @events.test_stop.add_listener
 def on_test_stop(environment, **kwargs):
+    metrics = get_metrics()
+    if metrics:
+        metrics.set_loadtest_status('stopped')
+    
     if config.chain_env == "local" and config.image_to_run and not config.fresh_container_for_each_test:
         global gb_container
         if gb_container:
@@ -91,7 +102,12 @@ class ArkivL3User(JsonRpcUser):
         
     def on_start(self):
         self.id = next(id_iterator)
+        get_metrics().current_user_count.inc()
         logging.info(f"User started with id: {self.id}")
+    
+    def on_stop(self):
+        get_metrics().current_user_count.dec()
+        logging.info(f"User stopped with id: {self.id}")
     
     def _initialize_account_and_w3(self):
         """Initialize account and w3 connection if not already initialized."""
@@ -135,12 +151,16 @@ class ArkivL3User(JsonRpcUser):
             nonce = w3.eth.get_transaction_count(self.account.address)
             logging.info(f"Nonce: {nonce}")
 
+            start_time = time.time()
             w3.arkiv.create_entity(
                 payload=bigger_payload, 
                 content_type="application/json", 
                 attributes={"ArkivEntityType": "StressedEntity"},
                 btl=2592000, # 20 minutes
             )
+            duration = time.time() - start_time
+            
+            get_metrics().record_transaction(len(bigger_payload), duration)
         except Exception as e:
             logging.error(f"Error: {e}", exc_info=True)
             raise
@@ -162,6 +182,7 @@ class ArkivL3User(JsonRpcUser):
         nonce = w3.eth.get_transaction_count(self.account.address)
         logging.info(f"Nonce: {nonce}")
 
+        start_time = time.time()
         w3.arkiv.create_entity(
             payload=simple_payload, 
             content_type="text/plain", 
@@ -172,6 +193,9 @@ class ArkivL3User(JsonRpcUser):
             },
             btl=2592000, # 20 minutes
         )
+        duration = time.time() - start_time
+        
+        get_metrics().record_transaction(len(simple_payload), duration)
 
     def selective_query(self, percent: int = 50):
         """
@@ -181,9 +205,14 @@ class ArkivL3User(JsonRpcUser):
         w3 = self._initialize_account_and_w3()
         
         # Query entities with queryPercentage below threshold
+        start_time = time.time()
+        
         query = f'ArkivEntityType="StressedEntity" && queryPercentage<{percent}'
         result = w3.arkiv.query_entities(query=query, options=QueryOptions(fields=KEY, max_results_per_page=0))
         
+        duration = time.time() - start_time
+        get_metrics().record_query(percent, duration)
+
         logging.info(f"Found {len(result.entities)} entities with queryPercentage < {percent} (user: {self.id})")
         logging.debug(f"Result: {result} (user: {self.id})")
 
