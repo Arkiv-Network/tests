@@ -4,6 +4,7 @@ from web3 import Account, Web3
 from eth_account.signers.local import LocalAccount
 import web3
 import config
+from utils import build_account_path
 
 logging.basicConfig(level=logging.ERROR)
 Account.enable_unaudited_hdwallet_features()
@@ -22,7 +23,8 @@ if w3.is_connected():
     contract = w3.eth.contract(address=golembase_l3_bridge_address, abi=deposit_abi)
 
     for i in range(config.users):
-        account = Account.from_mnemonic(config.mnemonic, account_path=f"m/44'/60'/0'/0/{i+1}")
+        account_path = build_account_path(i)
+        account = Account.from_mnemonic(config.mnemonic, account_path=account_path)
         logging.error(f"Topping up account {i+1}: {account.address} {account.key.hex()}")
         nonce = w3.eth.get_transaction_count(founder_account.address)
 

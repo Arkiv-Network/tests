@@ -4,6 +4,8 @@ import json
 import logging
 
 class JsonRpcUser(FastHttpUser):
+    abstract = True
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         original_request_method = self.client.request
