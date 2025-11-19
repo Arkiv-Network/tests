@@ -34,7 +34,7 @@ def on_test_stop(environment, **kwargs):
     pass
 
 class L3ExplorerUser(FastHttpUser):
-    wait_time = between(5, 10)
+    wait_time = between(2, 6)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.id = 0
