@@ -11,27 +11,27 @@ JOB_NAME = os.getenv("JOB_NAME", "arkiv-stress-l3")
 INSTANCE_ID = os.getenv("INSTANCE_ID", None)
 DEFAULT_PUSH_INTERVAL = 1  # Default interval in seconds for pushing metrics
 
-def get_metrics():
-    """Get the global metrics instance"""
-    if Metrics._instance is None:
-        Metrics._instance = Metrics()
-        logging.info("Created new metrics instance")
-    return Metrics._instance
-
-
-def reset_global_metrics():
-    """Reset the global metrics instance - stops current instance and creates a new one"""
-    if Metrics._instance:
-        Metrics._instance.stop_push_task()
-        logging.info("Stopped previous metrics instance")
-    Metrics._instance = Metrics()
-
-
 class Metrics:
     """
     A class to handle Prometheus metrics collection and pushing to push gateway
     """
     _instance = None
+
+    @classmethod
+    def get_metrics(cls):
+        """Get the global metrics instance"""
+        if cls._instance is None:
+            cls._instance = cls()
+            logging.info("Created new metrics instance")
+        return cls._instance
+
+    @classmethod
+    def reset_global_metrics(cls):
+        """Reset the global metrics instance - stops current instance and creates a new one"""
+        if cls._instance:
+            cls._instance.stop_push_task()
+            logging.info("Stopped previous metrics instance")
+        cls._instance = cls()
     
     def __init__(self, instance_id: str = None, push_interval: int = DEFAULT_PUSH_INTERVAL):
         """
