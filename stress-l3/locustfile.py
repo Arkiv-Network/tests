@@ -11,8 +11,8 @@ from typing import Optional
 
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
-from arkiv.types import QueryOptions, KEY, Operations
-from arkiv.utils import to_create_op
+from arkiv.types import KEY, Operations
+from arkiv.utils import to_create_op, to_query_options
 from eth_account.signers.local import LocalAccount
 from json_rpc_user import JsonRpcUser
 from locust import task, between, events
@@ -411,7 +411,7 @@ class ArkivL3User(JsonRpcUser):
             start_time = time.time()
             query = f'UniqueId="{unique_id}" && ArkivEntityType="StressedEntity"'
             result = w3.arkiv.query_entities(
-                query=query, options=QueryOptions(fields=KEY, max_results_per_page=1)
+                query=query, options=to_query_options(fields=KEY, max_results_per_page=1)
             )
             duration = time.time() - start_time
 
@@ -440,7 +440,7 @@ class ArkivL3User(JsonRpcUser):
 
             query = f'ArkivEntityType="StressedEntity" && queryPercentage<{percent}'
             result = w3.arkiv.query_entities(
-                query=query, options=QueryOptions(fields=KEY, max_results_per_page=0)
+                query=query, options=to_query_options(fields=KEY, max_results_per_page=0)
             )
 
             duration = time.time() - start_time
@@ -488,7 +488,7 @@ class ArkivL3User(JsonRpcUser):
             )
             result = w3.arkiv.query_entities(
                 query='ArkivEntityType="StressedEntity"',
-                options=QueryOptions(fields=KEY, max_results_per_page=0),
+                options=to_query_options(fields=KEY, max_results_per_page=0),
             )
 
             logging.debug(f"Result: {result} (user: {self.id})")
