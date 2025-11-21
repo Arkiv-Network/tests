@@ -165,6 +165,12 @@ class Metrics:
             registry=self.registry,
         )
 
+        self.entities_created = Counter(
+            "loadtest_entities_created_total",
+            "Total number of entities created",
+            registry=self.registry,
+        )
+
         # Transaction time histogram (in milliseconds)
         self.transaction_time = Histogram(
             "loadtest_transaction_time_milliseconds",
@@ -270,10 +276,13 @@ class Metrics:
         duration_ms = duration * 1000
         self.query_time.labels(percentile=str(selectivness)).observe(duration_ms)
 
-    def record_transaction(self, payload_bytes: int, duration: float):
-        """Record a transaction with payload size and duration (duration in seconds, converted to milliseconds)"""
+    def record_transaction(
+        self, payload_bytes: int, duration: float, entity_count: int = 1
+    ):
+        """Record a transaction with payload size, duration, and entity count (duration in seconds, converted to milliseconds)"""
         self.transactions_count.inc()
         self.transaction_payload_bytes.inc(payload_bytes)
+        self.entities_created.inc(entity_count)
         # Convert duration from seconds to milliseconds
         duration_ms = duration * 1000
         self.transaction_time.observe(duration_ms)

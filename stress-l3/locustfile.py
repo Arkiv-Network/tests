@@ -6,10 +6,13 @@ import uuid
 import random
 import socket
 import os
+from datetime import timedelta
+from typing import Optional
 
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
 from arkiv.types import QueryOptions, KEY
+from arkiv.operations import to_create_op, Operations
 from eth_account.signers.local import LocalAccount
 from json_rpc_user import JsonRpcUser
 from locust import task, between, events
@@ -21,6 +24,9 @@ from utils import launch_image, build_account_path
 from metrics import Metrics
 
 Account.enable_unaudited_hdwallet_features()
+
+# Default block duration in seconds
+DEFAULT_BLOCK_DURATION: int = 2
 
 # JSON data as one-line Python string
 bigger_payload = b'{"offer":{"constraints":"(&\\n  (golem.srv.comp.expiration>1653219330118)\\n  (golem.node.debug.subnet=0987)\\n)","offerId":"7f2f81f213dd48549e080d774dbf1bc2-076a8cbae6546e5f158e5b4d3a869f25a8e2ae426279a691e7ee45315efa3d83","properties":{"golem":{"activity":{"caps":{"transfer":{"protocol":["http","https","gftp"]}}},"com":{"payment":{"debit-notes":{"accept-timeout?":240},"platform":{"erc20-rinkeby-tglm":{"address":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23"},"zksync-rinkeby-tglm":{"address":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23"}}},"pricing":{"model":{"@tag":"linear","linear":{"coeffs":[0.0002777777777777778,0.001388888888888889,0.0]}}},"scheme":"payu","usage":{"vector":["golem.usage.duration_sec","golem.usage.cpu_sec"]}},"inf":{"cpu":{"architecture":"x86_64","capabilities":["sse3","pclmulqdq","dtes64","monitor","dscpl","vmx","eist","tm2","ssse3","fma","cmpxchg16b","pdcm","pcid","sse41","sse42","x2apic","movbe","popcnt","tsc_deadline","aesni","xsave","osxsave","avx","f16c","rdrand","fpu","vme","de","pse","tsc","msr","pae","mce","cx8","apic","sep","mtrr","pge","mca","cmov","pat","pse36","clfsh","ds","acpi","mmx","fxsr","sse","sse2","ss","htt","tm","pbe","fsgsbase","adjust_msr","smep","rep_movsb_stosb","invpcid","deprecate_fpu_cs_ds","mpx","rdseed","rdseed","adx","smap","clflushopt","processor_trace","sgx","sgx_lc"],"cores":6,"model":"Stepping 10 Family 6 Model 158","threads":11,"vendor":"GenuineIntel"},"mem":{"gib":28.0},"storage":{"gib":57.276745605468754}},"node":{"debug":{"subnet":"0987"},"id":{"name":"nieznanysprawiciel-laptop-Provider-2"}},"runtime":{"capabilities":["vpn"],"name":"vm","version":"0.2.10"},"srv":{"caps":{"multi-activity":true}}}},"providerId":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23","timestamp":"2022-05-22T11:35:49.290821396Z"},"proposedSignature":"NoSignature","state":"Pending","timestamp":"2022-05-22T11:35:49.290821396Z","validTo":"2022-05-22T12:35:49.280650Z"}'
@@ -92,6 +98,7 @@ class ArkivL3User(JsonRpcUser):
         self.unique_ids = set()
         self.account: LocalAccount | None = None
         self.w3: Arkiv | None = None
+        self.block_duration: int = DEFAULT_BLOCK_DURATION
 
         logging.config.dictConfig(
             {
@@ -120,6 +127,8 @@ class ArkivL3User(JsonRpcUser):
         self.id = next(id_iterator)
         Metrics.get_metrics().current_user_count.inc()
         logging.info(f"User started with id: {self.id}")
+
+        self.block_duration = self._query_block_duration()
 
     def on_stop(self):
         Metrics.get_metrics().current_user_count.dec()
@@ -150,6 +159,38 @@ class ArkivL3User(JsonRpcUser):
             logging.info(f"Connected to Arkiv L3 (user: {self.id})")
 
         return self.w3
+
+    def _query_block_duration(self) -> int:
+        """Get block duration from block timing."""
+        try:
+            block_timing = self.w3.arkiv.get_block_timing()
+            duration = block_timing.duration
+            logging.info(f"Block duration: {duration} seconds (user: {self.id})")
+            return duration
+        except Exception:
+            return DEFAULT_BLOCK_DURATION
+
+    def _calculate_expiration(self, duration: timedelta) -> int:
+        """
+        Calculate expiration time in seconds based on duration and block timing.
+
+        Args:
+            duration: Duration as timedelta
+
+        Returns:
+            Expiration time in seconds
+        """
+        # Convert timedelta to total seconds
+        duration_seconds = int(duration.total_seconds())
+
+        # Calculate expiration based on block duration
+        # Round up to nearest block
+        blocks_needed = (
+            duration_seconds + self.block_duration - 1
+        ) // self.block_duration
+        expiration_seconds = blocks_needed * self.block_duration
+
+        return expiration_seconds
 
     def _generate_payload(self, size_bytes: int) -> bytes:
         """
@@ -206,48 +247,78 @@ class ArkivL3User(JsonRpcUser):
             if gb_container:
                 gb_container.stop()
 
-    def _store_payload(self, size_bytes: int):
+    def _store_payload(
+        self,
+        size_bytes: int,
+        count: int = 1,
+        expires_in: timedelta = timedelta(minutes=30),
+    ):
         """
-        Store a payload of the specified size.
+        Store one or more payloads of the specified size.
 
         Args:
             size_bytes: Size of the payload in bytes
+            count: Number of entities to create in a single transaction (default: 1)
+            expires_in: Expiration time as timedelta (default: 30 minutes)
         """
         try:
-            # Generate unique ID and store it in the set for use in other tasks
-            unique_id = str(uuid.uuid4())
-            self.unique_ids.add(unique_id)
+            w3 = self._initialize_account_and_w3()
 
-            # Random query percentage between 1 and 100
-            query_percentage = random.randint(1, 100)
+            # Calculate expiration in seconds based on block timing
+            expiration_seconds = self._calculate_expiration(expires_in)
 
-            # Generate payload of the specified size
+            # Generate payload of the specified size (same payload for all entities)
             payload = self._generate_payload(size_bytes)
 
-            w3 = self._initialize_account_and_w3()
+            # Generate create operations for all entities
+            operations = []
+            total_payload_size = 0
+            for _ in range(count):
+                # Generate unique ID and store it in the set for use in other tasks
+                unique_id = str(uuid.uuid4())
+                self.unique_ids.add(unique_id)
+
+                # Random query percentage between 1 and 100
+                query_percentage = random.randint(1, 100)
+
+                # Create operation for this entity
+                create_op = to_create_op(
+                    payload=payload,
+                    content_type="text/plain",
+                    attributes={
+                        "ArkivEntityType": "StressedEntity",
+                        "queryPercentage": query_percentage,  # Random percentage 1-100 for querying
+                        "uniqueId": unique_id,  # Unique attribute for single entity query
+                    },
+                    expires_in=expiration_seconds,
+                )
+                operations.append(create_op)
+                total_payload_size += len(payload)
 
             nonce = w3.eth.get_transaction_count(self.account.address)
             logging.info(
-                f"Sending transaction with nonce: {nonce}, payload size: {size_bytes} bytes, user: {self.id}"
+                f"Sending transaction with nonce: {nonce}, payload size: {size_bytes} bytes, "
+                f"count: {count}, user: {self.id}"
             )
 
             start_time = time.time()
-            w3.arkiv.create_entity(
-                payload=payload,
-                content_type="text/plain",
-                attributes={
-                    "ArkivEntityType": "StressedEntity",
-                    "queryPercentage": query_percentage,  # Random percentage 1-100 for querying
-                    "uniqueId": unique_id,  # Unique attribute for single entity query
-                },
-                btl=2592000,  # 20 minutes
-            )
+            # Execute all create operations in a single transaction
+            operations = Operations(creates=operations)
+            receipt = w3.arkiv.execute(operations)
             duration = time.time() - start_time
 
-            Metrics.get_metrics().record_transaction(len(payload), duration)
+            # Verify receipt
+            if len(receipt.creates) != count:
+                raise Exception(
+                    f"Expected {count} creates, but got {len(receipt.creates)}"
+                )
+
+            Metrics.get_metrics().record_transaction(
+                total_payload_size, duration, count
+            )
         except Exception as e:
             logging.error(
-                f"Error in _store_payload (user: {self.id}, size: {size_bytes} bytes): {e}",
+                f"Error in _store_payload (user: {self.id}, size: {size_bytes} bytes, count: {count}): {e}",
                 exc_info=True,
             )
             raise
