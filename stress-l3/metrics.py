@@ -152,6 +152,33 @@ class Metrics:
             registry=self.registry,
         )
 
+        # Query result size histogram (number of entities returned)
+        result_size_buckets = [
+            0,
+            1,
+            5,
+            10,
+            25,
+            50,
+            100,
+            250,
+            500,
+            1000,
+            2500,
+            5000,
+            10000,
+            25000,
+            50000,
+            100000,
+        ]
+        self.query_result_size = Histogram(
+            "loadtest_query_result_size",
+            "Number of entities returned by queries",
+            ["percentile"],
+            buckets=result_size_buckets,
+            registry=self.registry,
+        )
+
         # Transaction metrics
         self.transactions_count = Counter(
             "loadtest_transactions_total",
@@ -277,12 +304,20 @@ class Metrics:
         return self.registry
 
     # Simple one-liner functions for recording metrics
-    def record_query(self, selectivness: int, duration: float):
-        """Record a query execution with percentile and duration (duration in seconds, converted to milliseconds)"""
+    def record_query(self, selectivness: int, duration: float, result_size: int = 0):
+        """
+        Record a query execution with percentile, duration, and result size.
+        
+        Args:
+            selectivness: Selectiveness percentile threshold
+            duration: Duration in seconds (converted to milliseconds)
+            result_size: Number of entities returned by the query
+        """
         self.queries_by_percentile.labels(percentile=str(selectivness)).inc()
         # Convert duration from seconds to milliseconds
         duration_ms = duration * 1000
         self.query_time.labels(percentile=str(selectivness)).observe(duration_ms)
+        self.query_result_size.labels(percentile=str(selectivness)).observe(result_size)
 
     def record_transaction(
         self, payload_bytes: int, duration: float, entity_count: int = 1
