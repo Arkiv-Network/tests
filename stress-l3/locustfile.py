@@ -50,6 +50,15 @@ def topup_local_account(account: LocalAccount, w3: Web3):
 gb_container = None
 
 
+@events.init.add_listener
+def on_locust_init(environment, **kwargs):
+    """Initialize Locust - runs once when Locust starts."""
+    if environment.runner and environment.runner.is_master:
+        logging.info("Running only on master - starting EntityCountUpdater")
+        EntityCountUpdater.instance = EntityCountUpdater()
+        EntityCountUpdater.instance.start()
+
+
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
     Metrics.reset_global_metrics()
@@ -62,12 +71,6 @@ def on_test_start(environment, **kwargs):
     )
     global id_iterator
     id_iterator = itertools.count(0)
-
-    # Start background thread for entity count updates (only on master)
-    if environment.runner and environment.runner.is_master:
-        EntityCountUpdater.instance = EntityCountUpdater()
-        EntityCountUpdater.instance.start()
-        logging.info("EntityCountUpdater started on master")
 
     if (
         config.chain_env == "local"
@@ -84,11 +87,6 @@ def on_test_stop(environment, **kwargs):
     metrics = Metrics.get_metrics()
     if metrics:
         metrics.set_loadtest_status("stopped")
-
-    # Stop background thread for entity count updates (only on master)
-    if environment.runner and environment.runner.is_master:
-        if EntityCountUpdater.instance:
-            EntityCountUpdater.instance.stop()
 
     if (
         config.chain_env == "local"
