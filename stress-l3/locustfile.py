@@ -16,6 +16,7 @@ from arkiv.utils import to_create_op, to_query_options
 from eth_account.signers.local import LocalAccount
 from json_rpc_user import JsonRpcUser
 from locust import task, between, events
+from locust.runners import MasterRunner, LocalRunner
 from web3 import Web3
 import web3
 from eth_account import Account
@@ -53,8 +54,10 @@ gb_container = None
 @events.init.add_listener
 def on_locust_init(environment, **kwargs):
     """Initialize Locust - runs once when Locust starts."""
-    if environment.runner and environment.runner.is_master:
-        logging.info("Running only on master - starting EntityCountUpdater")
+    runner = getattr(environment, "runner", None)
+    # only run on the master node or local runner
+    if isinstance(runner, (MasterRunner, LocalRunner)):
+        logging.info("Running on master/local runner - starting EntityCountUpdater")
         EntityCountUpdater.instance = EntityCountUpdater()
         EntityCountUpdater.instance.start()
 
