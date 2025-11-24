@@ -63,9 +63,11 @@ def on_test_start(environment, **kwargs):
     global id_iterator
     id_iterator = itertools.count(0)
 
-    # Start background thread for entity count updates
-    EntityCountUpdater.instance = EntityCountUpdater()
-    EntityCountUpdater.instance.start()
+    # Start background thread for entity count updates (only on master)
+    if environment.runner and environment.runner.is_master:
+        EntityCountUpdater.instance = EntityCountUpdater()
+        EntityCountUpdater.instance.start()
+        logging.info("EntityCountUpdater started on master")
 
     if (
         config.chain_env == "local"
@@ -83,9 +85,10 @@ def on_test_stop(environment, **kwargs):
     if metrics:
         metrics.set_loadtest_status("stopped")
 
-    # Stop background thread for entity count updates
-    if EntityCountUpdater.instance:
-        EntityCountUpdater.instance.stop()
+    # Stop background thread for entity count updates (only on master)
+    if environment.runner and environment.runner.is_master:
+        if EntityCountUpdater.instance:
+            EntityCountUpdater.instance.stop()
 
     if (
         config.chain_env == "local"
