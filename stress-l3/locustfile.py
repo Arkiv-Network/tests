@@ -22,6 +22,7 @@ from eth_account import Account
 import config
 from utils import launch_image, build_account_path
 from metrics import Metrics
+from entity_count_updater import EntityCountUpdater
 
 Account.enable_unaudited_hdwallet_features()
 
@@ -62,6 +63,10 @@ def on_test_start(environment, **kwargs):
     global id_iterator
     id_iterator = itertools.count(0)
 
+    # Start background thread for entity count updates
+    EntityCountUpdater.instance = EntityCountUpdater()
+    EntityCountUpdater.instance.start()
+
     if (
         config.chain_env == "local"
         and config.image_to_run
@@ -77,6 +82,10 @@ def on_test_stop(environment, **kwargs):
     metrics = Metrics.get_metrics()
     if metrics:
         metrics.set_loadtest_status("stopped")
+
+    # Stop background thread for entity count updates
+    if EntityCountUpdater.instance:
+        EntityCountUpdater.instance.stop()
 
     if (
         config.chain_env == "local"
@@ -499,24 +508,3 @@ class ArkivL3User(JsonRpcUser):
             )
             raise
 
-    @task(1)
-    def query_total_entity_count(self):
-        """
-        Query the total number of all entities stored on Arkiv at the current moment
-        and report this as a metric.
-        """
-        try:
-            w3 = self._initialize_account_and_w3()
-            
-            entity_count = w3.arkiv.get_entity_count()
-            Metrics.get_metrics().total_entity_count.set(entity_count)
-
-            logging.info(
-                f"Total entity count: {entity_count} (user: {self.id})"
-            )
-                
-        except Exception as e:
-            logging.error(
-                f"Error in query_total_entity_count (user: {self.id}): {e}", exc_info=True
-            )
-            raise
