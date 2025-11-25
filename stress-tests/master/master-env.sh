@@ -6,6 +6,4 @@
 export MASTER_HOST="49.13.209.55"
 export MASTER_PORT="5557"
 
-# Locust file path containing stress tests code (relative to stress-l3 directory)
-export LOCUST_FILE="locustfile.py"
 

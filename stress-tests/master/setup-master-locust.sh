@@ -16,13 +16,13 @@ normalize_path() {
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Get the stress-l3 root directory (parent of master directory) and normalize it
+# Get the stress-tests root directory (parent of master directory) and normalize it
 STRESS_L3_DIR="$(normalize_path "$SCRIPT_DIR/..")"
 
 # Source master environment configuration
 source "$SCRIPT_DIR/master-env.sh"
 
-# Working directory is the stress-l3 root directory
+# Working directory is the stress-tests root directory
 WORKING_DIRECTORY="$STRESS_L3_DIR"
 
 echo "Setting up Locust master with working directory: $WORKING_DIRECTORY"
@@ -53,11 +53,9 @@ cp "$SCRIPT_DIR/locust-arkiv.service.template" /tmp/locust-arkiv.service
 # Replace placeholders in the service file
 # STRESS_L3_DIR is already normalized, so paths built from it are already absolute
 ENV_FILE="$STRESS_L3_DIR/.env-public"
-LOCUST_FILE_PATH="$STRESS_L3_DIR/$LOCUST_FILE"
-
 sed -i "s|ENV_FILE_PLACEHOLDER|$ENV_FILE|g" /tmp/locust-arkiv.service
 sed -i "s|WORKING_DIRECTORY_PLACEHOLDER|$WORKING_DIRECTORY|g" /tmp/locust-arkiv.service
-sed -i "s|LOCUST_FILE_PLACEHOLDER|$LOCUST_FILE|g" /tmp/locust-arkiv.service
+sed -i "s|STRESS_L3_DIR_PLACEHOLDER|$STRESS_L3_DIR|g" /tmp/locust-arkiv.service
 
 sudo mv /tmp/locust-arkiv.service /etc/systemd/system/locust-arkiv.service
 echo "Locust master systemd service created."

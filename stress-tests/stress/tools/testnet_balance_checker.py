@@ -3,8 +3,9 @@ import logging
 from web3 import Account, Web3
 from eth_account.signers.local import LocalAccount
 import web3
-import config
-from utils import build_account_path
+
+import stress.tools.config as config
+from stress.tools.utils import build_account_path
 
 logging.basicConfig(level=logging.INFO)
 Account.enable_unaudited_hdwallet_features()

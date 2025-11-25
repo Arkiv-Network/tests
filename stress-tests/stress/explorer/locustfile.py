@@ -10,9 +10,10 @@ from locust import task, between, events, FastHttpUser
 from web3 import Web3
 import web3
 from eth_account import Account
-import config
 from golem_base_sdk.utils import rlp_encode_transaction, GolemBaseTransaction
 from golem_base_sdk.types import GolemBaseCreate, Annotation, GolemBaseDelete, GenericBytes
+
+import stress.tools.config as config
 
 # JSON data as one-line Python string
 simple_payload = b'Hello Golem DB Workshop!'

@@ -35,7 +35,7 @@ ENV_FILE="$STRESS_L3_DIR/.env-public"
 
 sed -i "s|ENV_FILE_PLACEHOLDER|$ENV_FILE|g" /tmp/locust.service
 sed -i "s|WORKING_DIRECTORY_PLACEHOLDER|$WORKING_DIRECTORY|g" /tmp/locust.service
-sed -i "s|LOCUST_FILE_PLACEHOLDER|$LOCUST_FILE|g" /tmp/locust.service
+sed -i "s|STRESS_L3_DIR_PLACEHOLDER|$STRESS_L3_DIR|g" /tmp/locust.service
 sed -i "s|MASTER_HOST_PLACEHOLDER|$MASTER_HOST|g" /tmp/locust.service
 sed -i "s|MASTER_PORT_PLACEHOLDER|$MASTER_PORT|g" /tmp/locust.service
 

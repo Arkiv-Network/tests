@@ -4,8 +4,10 @@ import threading
 from arkiv import Arkiv
 from web3 import Web3
 import web3
-import config
-from metrics import Metrics
+
+
+import stress.tools.config as config
+from stress.tools.metrics import Metrics
 
 
 class EntityCountUpdater:
