@@ -426,13 +426,13 @@ class ArkivL3User(JsonRpcUser):
             result = w3.arkiv.query_entities(
                 query=query, options=to_query_options(fields=KEY, max_results_per_page=1)
             )
+            entities = [entity for entity in result]
             duration = time.time() - start_time
-            result_size = len(result.entities)
-
-            Metrics.get_metrics().record_query(0, duration, result_size)
+        
+            Metrics.get_metrics().record_query(0, duration, len(entities))
 
             logging.info(
-                f"Single-entity query for uniqueId {unique_id} returned {result_size} entities (user: {self.id})"
+                f"Single-entity query for uniqueId {unique_id} returned {len(entities)} entities (user: {self.id})"
             )
         except Exception as e:
             logging.error(
@@ -456,13 +456,13 @@ class ArkivL3User(JsonRpcUser):
             result = w3.arkiv.query_entities(
                 query=query, options=to_query_options(fields=KEY, max_results_per_page=1)
             )
-
+            entities = [entity for entity in result]
             duration = time.time() - start_time
-            result_size = len(result.entities)
-            Metrics.get_metrics().record_query(percent, duration, result_size)
+            
+            Metrics.get_metrics().record_query(percent, duration, len(entities))
 
             logging.info(
-                f"Found {result_size} entities with queryPercentage < {percent} (user: {self.id})"
+                f"Found {len(entities)} entities with queryPercentage < {percent} (user: {self.id})"
             )
             logging.debug(f"Result: {result} (user: {self.id})")
         except Exception as e:
