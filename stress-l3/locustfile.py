@@ -244,11 +244,12 @@ class ArkivL3User(JsonRpcUser):
             logging.info(f"Nonce: {nonce}")
 
             start_time = time.time()
+            expiration_seconds = self._calculate_expiration(timedelta(minutes=20))
             w3.arkiv.create_entity(
                 payload=bigger_payload,
                 content_type="application/json",
                 attributes={"ArkivEntityType": "StressedEntity"},
-                btl=2592000,  # 20 minutes
+                expires_in=expiration_seconds,  # 20 minutes
             )
             duration = time.time() - start_time
 
@@ -458,7 +459,7 @@ class ArkivL3User(JsonRpcUser):
             )
             entities = [entity for entity in result]
             duration = time.time() - start_time
-            
+
             Metrics.get_metrics().record_query(percent, duration, len(entities))
 
             logging.info(
@@ -503,7 +504,7 @@ class ArkivL3User(JsonRpcUser):
             )
             result = w3.arkiv.query_entities(
                 query='ArkivEntityType="StressedEntity"',
-                options=to_query_options(fields=KEY, max_results_per_page=0),
+                options=to_query_options(fields=KEY, max_results_per_page=1),
             )
 
             logging.debug(f"Result: {result} (user: {self.id})")
