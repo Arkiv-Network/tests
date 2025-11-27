@@ -12,7 +12,7 @@ from arkiv.account import NamedAccount
 from arkiv.types import KEY, Operations
 from arkiv.utils import to_create_op, to_query_options
 from eth_account.signers.local import LocalAccount
-from locust import task, between, events
+from locust import task, between, events, constant_pacing
 from locust.runners import MasterRunner, LocalRunner
 from web3 import Web3
 import web3
@@ -95,7 +95,7 @@ def on_test_stop(environment, **kwargs):
 
 
 class ArkivL3User(JsonRpcUser):
-    wait_time = between(5, 10)
+    wait_time = constant_pacing(10)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
