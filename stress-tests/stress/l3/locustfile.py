@@ -37,18 +37,6 @@ bigger_payload = b'{"offer":{"constraints":"(&\\n  (golem.srv.comp.expiration>16
 simple_payload = b"Hello Golem DB Workshop!"
 
 
-def topup_local_account(account: LocalAccount, w3: Web3):
-    accounts = w3.eth.accounts
-    tx_hash = w3.eth.send_transaction(
-        {
-            "from": accounts[0],
-            "to": account.address,
-            "value": Web3.to_wei(10, "ether"),
-        }
-    )
-    logging.info(f"Transaction hash: {tx_hash}")
-
-
 gb_container = None
 
 
@@ -144,7 +132,22 @@ class ArkivL3User(JsonRpcUser):
 
             logging.info(f"Connected to Arkiv L3 (user: {self.id})")
 
+            if config.chain_env == "local":
+                self._topup_local_account()
+
         return self.w3
+
+    def _topup_local_account(self):
+        """Top up local account with ETH from the first account."""
+        accounts = self.w3.eth.accounts
+        tx_hash = self.w3.eth.send_transaction(
+            {
+                "from": accounts[0],
+                "to": self.account.address,
+                "value": Web3.to_wei(10, "ether"),
+            }
+        )
+        logging.info(f"Transaction hash: {tx_hash}")
 
     def _query_block_duration(self) -> int:
         """Get block duration from block timing."""
@@ -202,7 +205,7 @@ class ArkivL3User(JsonRpcUser):
             logging.info(f"Balance: {balance}")
             if balance == 0:
                 if config.chain_env == "local":
-                    topup_local_account(self.account, w3)
+                    self._topup_local_account()
                     logging.error(
                         f"Not enough balance to send transaction (user: {self.id})"
                     )

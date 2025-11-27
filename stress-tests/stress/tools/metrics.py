@@ -84,6 +84,9 @@ class Metrics:
         if self._initialized:
             return
 
+        logging.info(f"Metrics will be reported to Grafana under job name: {self.job_name}, instance ID: {self.instance_id}")
+        logging.debug(f"Metrics push interval: {self.push_interval} seconds")
+
         # Start the background task
         self._start_push_task()
         self._initialized = True
