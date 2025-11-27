@@ -144,7 +144,15 @@ class Metrics:
             4000,
             5000,
             7000,
-            10000,  # Continue with larger range
+            10000,
+            15000,
+            20000,
+            25000,
+            30000,
+            40000,
+            50000,
+            75000,
+            100000,
         ]
 
         # Query time histogram (in milliseconds)
