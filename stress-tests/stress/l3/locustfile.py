@@ -6,6 +6,7 @@ import socket
 import os
 from datetime import timedelta
 from typing import Optional
+from itertools import combinations
 
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
@@ -194,6 +195,30 @@ class ArkivL3User(JsonRpcUser):
         """
         return os.urandom(size_bytes)
 
+    def _get_annotations_for_percentages(self) -> dict[str, str]:
+        """
+        Get dictionary of annotation (name, value) pairs based on divisibility by powers of 2.
+        
+        Generates an independent random number for each power of 2 (2, 4, 8, 16, 32, 64)
+        and checks divisibility. This allows independent selection for each annotation.
+        Returns annotation dictionary that can be merged into attributes.
+        
+        Returns:
+            Dictionary of annotations, e.g., {"selector-2": "2", "selector-4": "4"}
+        """
+        annotations = {}
+        
+        # Powers of 2 to check divisibility
+        powers_of_2 = [2, 4, 8, 16, 32, 64]
+        
+        # Generate independent random number for each power of 2
+        for power in powers_of_2:
+            number = random.randint(1, 128)
+            if number % power == 0:
+                annotations[f"selector-{power}"] = str(power)
+        
+        return annotations
+
     @task(1)
     def store_bigger_payload(self):
         gb_container = None
@@ -262,15 +287,22 @@ class ArkivL3User(JsonRpcUser):
                 # Random query percentage between 1 and 100
                 query_percentage = random.randint(1, 100)
 
+                # Build attributes dictionary
+                attributes = {
+                    "ArkivEntityType": "StressedEntity",
+                    "queryPercentage": query_percentage,  # Random percentage 1-100 for querying
+                    "uniqueId": unique_id,  # Unique attribute for single entity query
+                }
+                
+                # Generate annotations based on divisibility by powers of 2 and merge into attributes
+                annotations = self._get_annotations_for_percentages()
+                attributes.update(annotations)
+
                 # Create operation for this entity
                 create_op = to_create_op(
                     payload=payload,
                     content_type="text/plain",
-                    attributes={
-                        "ArkivEntityType": "StressedEntity",
-                        "queryPercentage": query_percentage,  # Random percentage 1-100 for querying
-                        "uniqueId": unique_id,  # Unique attribute for single entity query
-                    },
+                    attributes=attributes,
                     expires_in=expiration_seconds,
                 )
                 operations.append(create_op)
@@ -442,33 +474,163 @@ class ArkivL3User(JsonRpcUser):
             )
             raise
 
+    def _calculate_selector_approximation(self, target_percent: float) -> list[str]:
+        """
+        Calculate the best combination of selectors to approximate the target percentage.
+        
+        With independent random decisions, each selector has approximate probability:
+        - selector-2: ~50%, selector-4: ~25%, selector-8: ~12.5%, 
+        - selector-16: ~6.25%, selector-32: ~3.125%, selector-64: ~1.5625%
+        
+        For OR queries with independent events: P(A OR B) = P(A) + P(B) - P(A) * P(B)
+        
+        Args:
+            target_percent: Target percentage (0-100)
+            
+        Returns:
+            List of selector values that best approximate the target percentage
+        """
+        # Individual selector probabilities (as decimals)
+        selector_probs = {
+            "2": 0.5,
+            "4": 0.25,
+            "8": 0.125,
+            "16": 0.0625,
+            "32": 0.03125,
+            "64": 0.015625,
+        }
+        
+        target_prob = target_percent / 100.0
+        best_combination = []
+        best_diff = float('inf')
+        
+        # Try all combinations of selectors (powerset)
+        selectors = list(selector_probs.keys())
+        
+        for r in range(1, len(selectors) + 1):
+            for combo in combinations(selectors, r):
+                # Calculate union probability for independent events
+                # P(A OR B OR C) = 1 - (1-P(A)) * (1-P(B)) * (1-P(C))
+                union_prob = 1.0
+                for sel in combo:
+                    union_prob *= (1.0 - selector_probs[sel])
+                union_prob = 1.0 - union_prob
+                
+                diff = abs(union_prob - target_prob)
+                if diff < best_diff:
+                    best_diff = diff
+                    best_combination = list(combo)
+        
+        return best_combination
+
+    def selective_query_by_attribute(self, percent: int):
+        """
+        Stress test query that selects entities by annotation attribute values.
+        
+        Derives annotation selectors from the target percentage to approximate it.
+        
+        Args:
+            percent: Target percentage (0-100)
+        """
+        try:
+            # Calculate best approximation for the target percentage
+            annotation_values = self._calculate_selector_approximation(percent)
+            annotation_str = ", ".join(annotation_values)
+            
+            logging.info(
+                f"Selective query by attribute for {percent}% with selectors: {annotation_str} (user: {self.id})"
+            )
+            w3 = self._initialize_account_and_w3()
+
+            # Build query: entities with any of the specified annotations
+            # Query format: selector-2="2" || selector-4="4"
+            annotation_conditions = [
+                f'selector-{value}="{value}"' for value in annotation_values
+            ]
+            query = (
+                f'ArkivEntityType="StressedEntity" && ('
+                + " || ".join(annotation_conditions)
+                + ")"
+            )
+
+            start_time = time.perf_counter()
+            result = w3.arkiv.query_entities(
+                query=query,
+                options=to_query_options(fields=KEY, max_results_per_page=MAX_RESULTS_PER_PAGE),
+            )
+            entities = [entity for entity in result]
+            duration = timedelta(seconds=time.perf_counter() - start_time)
+
+            Metrics.get_metrics().record_query(percent, duration, len(entities))
+
+            logging.info(
+                f"Found {len(entities)} entities with selectors {annotation_str} (target: {percent}%) (user: {self.id})"
+            )
+            logging.debug(f"Result: {result} (user: {self.id})")
+        except Exception as e:
+            logging.error(
+                f"Error in selective_query_by_attribute (user: {self.id}, percent: {percent}): {e}",
+                exc_info=True,
+            )
+            raise
+
     @task(1)
-    def selective_query_1Percent(self):
+    def selective_query_by_value_1Percent(self):
         self.selective_query(1)
 
     @task(1)
-    def selective_query_5Percent(self):
+    def selective_query_by_value_5Percent(self):
         self.selective_query(5)
 
     @task(1)
-    def selective_query_20Percent(self):
+    def selective_query_by_value_20Percent(self):
         self.selective_query(20)
 
     @task(1)
-    def selective_query_40Percent(self):
+    def selective_query_by_value_40Percent(self):
         self.selective_query(40)
 
     @task(1)
-    def selective_query_60Percent(self):
+    def selective_query_by_value_60Percent(self):
         self.selective_query(60)
 
     @task(1)
-    def selective_query_80Percent(self):
+    def selective_query_by_value_80Percent(self):
         self.selective_query(80)
 
     @task(1)
-    def selective_query_100Percent(self):
+    def selective_query_by_value_100Percent(self):
         self.selective_query(100)
+
+    @task(1)
+    def selective_query_by_attribute_1Percent(self):
+        """Query entities for 1% target"""
+        self.selective_query_by_attribute(1)
+
+    @task(1)
+    def selective_query_by_attribute_5Percent(self):
+        """Query entities for 5% target"""
+        self.selective_query_by_attribute(5)
+
+    @task(1)
+    def selective_query_by_attribute_20Percent(self):
+        """Query entities for 20% target"""
+        self.selective_query_by_attribute(20)
+
+    @task(1)
+    def selective_query_by_attribute_40Percent(self):
+        """Query entities for 40% target"""
+        self.selective_query_by_attribute(40)
+
+    @task(1)
+    def selective_query_by_attribute_60Percent(self):
+        """Query entities for 60% target"""
+        self.selective_query_by_attribute(60)
+
+    @task(1)
+    def selective_query_by_attribute_80Percent(self):
+        """Query entities for 80% target"""
+        self.selective_query_by_attribute(80)
 
     @task(1)
     def retrieve_keys_to_count(self):
