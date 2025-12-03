@@ -204,7 +204,7 @@ class ArkivL3User(JsonRpcUser):
         Returns annotation dictionary that can be merged into attributes.
         
         Returns:
-            Dictionary of annotations, e.g., {"selector-2": "2", "selector-4": "4"}
+            Dictionary of annotations, e.g., {"selector2": "2", "selector4": "4"}
         """
         annotations = {}
         
@@ -215,7 +215,7 @@ class ArkivL3User(JsonRpcUser):
         for power in powers_of_2:
             number = random.randint(1, 128)
             if number % power == 0:
-                annotations[f"selector-{power}"] = str(power)
+                annotations[f"selector{power}"] = str(power)
         
         return annotations
 
@@ -392,14 +392,34 @@ class ArkivL3User(JsonRpcUser):
         self._store_payload(1024)
 
     @task(1)
+    def store_1kb_10_entities(self):
+        """Store 10 entities with 1 KB payload each"""
+        self._store_payload(1024, count=10)
+
+    @task(1)
+    def store_1kb_50_entities(self):
+        """Store 50 entities with 1 KB payload each"""
+        self._store_payload(1024, count=50)
+
+    @task(1)
     def store_10kb_payload(self):
         """Store a 10 KB payload"""
         self._store_payload(10 * 1024)
 
     @task(1)
+    def store_10kb_5_entities(self):
+        """Store 5 entities with 10 KB payload each"""
+        self._store_payload(10 * 1024, count=5)
+
+    @task(1)
     def store_32kb_payload(self):
         """Store a 32 KB payload"""
         self._store_payload(32 * 1024)
+
+    @task(1)
+    def store_32kb_2_entities(self):
+        """Store 2 entities with 32 KB payload each"""
+        self._store_payload(32 * 1024, count=2)
 
     @task(1)
     def store_64kb_payload(self):
@@ -479,8 +499,8 @@ class ArkivL3User(JsonRpcUser):
         Calculate the best combination of selectors to approximate the target percentage.
         
         With independent random decisions, each selector has approximate probability:
-        - selector-2: ~50%, selector-4: ~25%, selector-8: ~12.5%, 
-        - selector-16: ~6.25%, selector-32: ~3.125%, selector-64: ~1.5625%
+        - selector2: ~50%, selector4: ~25%, selector8: ~12.5%, 
+        - selector16: ~6.25%, selector32: ~3.125%, selector64: ~1.5625%
         
         For OR queries with independent events: P(A OR B) = P(A) + P(B) - P(A) * P(B)
         
@@ -488,7 +508,7 @@ class ArkivL3User(JsonRpcUser):
             target_percent: Target percentage (0-100)
             
         Returns:
-            List of selector values that best approximate the target percentage
+            List of selector values (numbers as strings) that best approximate the target percentage
         """
         # Individual selector probabilities (as decimals)
         selector_probs = {
@@ -543,9 +563,9 @@ class ArkivL3User(JsonRpcUser):
             w3 = self._initialize_account_and_w3()
 
             # Build query: entities with any of the specified annotations
-            # Query format: selector-2="2" || selector-4="4"
+            # Query format: selector2="2" || selector4="4"
             annotation_conditions = [
-                f'selector-{value}="{value}"' for value in annotation_values
+                f'selector{value}="{value}"' for value in annotation_values
             ]
             query = (
                 f'ArkivEntityType="StressedEntity" && ('
