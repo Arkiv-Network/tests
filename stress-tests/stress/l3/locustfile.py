@@ -24,7 +24,7 @@ from arkiv.types import KEY, Operations
 from arkiv.utils import to_create_op, to_query_options
 from eth_account.signers.local import LocalAccount
 from locust import task, between, events, constant_pacing
-from locust.runners import MasterRunner, LocalRunner
+from locust.runners import MasterRunner, LocalRunner, WorkerRunner
 from web3 import Web3
 import web3
 from eth_account import Account
@@ -58,9 +58,16 @@ gb_container = None
 def on_locust_init(environment, **kwargs):
     """Initialize Locust - runs once when Locust starts."""
     runner = getattr(environment, "runner", None)
-    # only run on the master node or local runner
-    if isinstance(runner, (MasterRunner, LocalRunner)):
-        logging.info("Running on master/local runner - creating EntityCountUpdater")
+    # run on worker with index 1 or on local runner
+    should_run = (
+        isinstance(runner, LocalRunner)
+        or (isinstance(runner, WorkerRunner) and hasattr(runner, "worker_index") and runner.worker_index == 1)
+    )
+    if should_run:
+        if isinstance(runner, WorkerRunner):
+            logging.info(f"Running on worker with index {runner.worker_index} - creating EntityCountUpdater")
+        else:
+            logging.info("Running on local runner - creating EntityCountUpdater")
         EntityCountUpdater.instance = EntityCountUpdater(environment)
 
 
@@ -75,9 +82,13 @@ def on_test_start(environment, **kwargs):
         f"A new test is starting with nr of users {environment.runner.target_user_count}"
     )
 
-    # Start/restart EntityCountUpdater (host may have changed)
+    # Start/restart EntityCountUpdater (host may have changed) - on worker with index 1 or local runner
     runner = getattr(environment, "runner", None)
-    if isinstance(runner, (MasterRunner, LocalRunner)):
+    should_run = (
+        isinstance(runner, LocalRunner)
+        or (isinstance(runner, WorkerRunner) and hasattr(runner, "worker_index") and runner.worker_index == 1)
+    )
+    if should_run:
         if EntityCountUpdater.instance:
             EntityCountUpdater.instance.restart()
 
