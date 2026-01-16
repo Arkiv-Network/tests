@@ -1,11 +1,21 @@
 import logging
 import threading
+from typing import Any
 
 from arkiv import Arkiv
 from web3 import Web3
 import web3
+from web3.method import Method, default_root_munger
+from web3.types import RPCEndpoint
 
 from stress.tools.metrics import Metrics
+
+FUNCTIONS_ABI: dict[str, Method[Any]] = {
+    "get_entity_count": Method(
+        json_rpc_method=RPCEndpoint("arkiv_getEntityCount"),
+        mungers=[default_root_munger],
+    ),
+}
 
 
 class EntityCountUpdater:
@@ -36,6 +46,11 @@ class EntityCountUpdater:
         if not self._w3.is_connected():
             logging.error(f"EntityCountUpdater: Not connected to Arkiv L3 at {host}")
             return
+
+        # Attach custom RPC methods
+        self._w3.eth.attach_methods(FUNCTIONS_ABI)  # type: ignore[attr-defined]
+        for method_name in FUNCTIONS_ABI.keys():
+            logging.debug(f"Custom RPC method: eth.{method_name}")
 
         logging.info(f"EntityCountUpdater: Started with host {host}")
 

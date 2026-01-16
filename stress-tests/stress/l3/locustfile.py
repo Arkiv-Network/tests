@@ -397,6 +397,16 @@ class ArkivL3User(JsonRpcUser):
         """Store 200 entities with 100 bytes payload each"""
         self._store_payload(100, count=200)
 
+    @task(1)
+    def store_100_bytes_500_entities(self):
+        """Store 200 entities with 100 bytes payload each"""
+        self._store_payload(100, count=500)
+
+    @task(1)
+    def store_100_bytes_1000_entities(self):
+        """Store 200 entities with 100 bytes payload each"""
+        self._store_payload(100, count=1000)
+
     @task(2)
     def store_1kb_payload(self):
         """Store a 1 KB payload"""
