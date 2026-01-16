@@ -24,7 +24,7 @@ logging.info(f"Using mnemonic: {config.mnemonic}, users: {config.users}")
 
 
 
-class L3ExplorerUser(FastHttpUser):
+class L3ExplorerUser(BaseUser):
     wait_time = between(2, 6)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -53,9 +53,6 @@ class L3ExplorerUser(FastHttpUser):
                 "level": config.log_level
             }
         })
-        
-    def on_start(self):
-        self.id = next(id_iterator)
 
     #@task
     def explore_blocks(self):
