@@ -698,3 +698,36 @@ class ArkivL3User(JsonRpcUser):
                 f"Error in retrieve_keys_to_count (user: {self.id}): {e}", exc_info=True
             )
             raise
+
+    @task(1)
+    def store_simple_payload(self):
+        gb_container = None
+        try:
+            if (
+                config.chain_env == "local"
+                and config.image_to_run
+                and config.fresh_container_for_each_test
+            ):
+                gb_container = launch_image(config.image_to_run)
+
+            w3 = self._initialize_account_and_w3()
+
+            nonce = w3.eth.get_transaction_count(self.account.address)
+            logging.info(f"Nonce: {nonce}")
+
+            start_time = time.perf_counter()
+            w3.arkiv.create_entity(
+                payload=simple_payload,
+                content_type="application/json",
+                attributes={"GolemBaseMarketplace": "Offer", "projectId": "ArkivStressTest"},
+                btl=2592000,  # 30 days
+            )
+            duration = timedelta(seconds=time.perf_counter() - start_time)
+
+            Metrics.get_metrics().record_transaction(len(simple_payload), duration)
+        except Exception as e:
+            logging.error(f"Error: {e}", exc_info=True)
+            raise
+        finally:
+            if gb_container:
+                gb_container.stop()

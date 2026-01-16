@@ -23,8 +23,43 @@ Account.enable_unaudited_hdwallet_features()
 logging.info(f"Using mnemonic: {config.mnemonic}, users: {config.users}")
 
 
-class L3ExplorerUser(BaseUser):
-    wait_time = between(5, 10)
+    
+@events.test_stop.add_listener
+def on_test_stop(environment, **kwargs):
+    pass
+
+class L3ExplorerUser(FastHttpUser):
+    wait_time = between(2, 6)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.id = 0
+        
+        logging.config.dictConfig({
+            "version": 1,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                }
+            },
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default"
+                },
+                "file": {
+                    "class": "logging.FileHandler",
+                    "formatter": "default",
+                    "filename": "locust.log"
+                }
+            },
+            "root": {
+                "handlers": ["console", "file"],
+                "level": config.log_level
+            }
+        })
+        
+    def on_start(self):
+        self.id = next(id_iterator)
 
     #@task
     def explore_blocks(self):
