@@ -1,39 +1,30 @@
 import logging
-import logging.config
-import time
+import sys
+from pathlib import Path
 
-from arkiv import Arkiv
-from arkiv.account import NamedAccount
-from arkiv.types import QueryOptions, KEY
+# Add the parent directory to Python path so we can import stress module
+# This file is at: stress-tests/stress/explorer/locustfile.py
+# We need to add stress-tests/ to the path
+file_dir = Path(__file__).resolve().parent
+project_root = file_dir.parent.parent  # Go up from explorer/ to stress/ to stress-tests/
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from eth_account.signers.local import LocalAccount
-from locust import task, between, events, FastHttpUser
-from web3 import Web3
-import web3
+from locust import task, between
 from eth_account import Account
-import config
-from golem_base_sdk.utils import rlp_encode_transaction, GolemBaseTransaction
-from golem_base_sdk.types import GolemBaseCreate, Annotation, GolemBaseDelete, GenericBytes
 
-# JSON data as one-line Python string
-simple_payload = b'Hello Golem DB Workshop!'
+import stress.tools.config as config
+from stress.tools.utils import build_account_path
+from stress.tools.base_user import BaseUser
+
 Account.enable_unaudited_hdwallet_features()
-id_iterator = None
 
 logging.info(f"Using mnemonic: {config.mnemonic}, users: {config.users}")
 
-explorer_container = None
-@events.test_start.add_listener
-def on_test_start(environment, **kwargs):
-    logging.info(f"A new test is starting with nr of users {environment.runner.target_user_count}")
-    global id_iterator
-    id_iterator = (i+1 for i in range(environment.runner.target_user_count))
 
-    
-@events.test_stop.add_listener
-def on_test_stop(environment, **kwargs):
-    pass
 
-class L3ExplorerUser(FastHttpUser):
+class L3ExplorerUser(BaseUser):
     wait_time = between(2, 6)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -62,9 +53,6 @@ class L3ExplorerUser(FastHttpUser):
                 "level": config.log_level
             }
         })
-        
-    def on_start(self):
-        self.id = next(id_iterator)
 
     #@task
     def explore_blocks(self):
@@ -107,7 +95,10 @@ class L3ExplorerUser(FastHttpUser):
 
     @task
     def explore_address(self):
-        account: LocalAccount = Account.from_mnemonic(config.mnemonic, account_path=f"m/44'/60'/0'/0/{self.id}")
+        account_path = build_account_path(self.id)
+        account: LocalAccount = Account.from_mnemonic(
+            config.mnemonic, account_path=account_path
+        )
         logging.info(f"Account: {account.address}")
         response = self.client.get(f"/api/v2/addresses/{account.address}", name="/api/v2/addresses/{address}")
         if response.ok:

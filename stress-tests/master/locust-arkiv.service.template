@@ -1,0 +1,15 @@
+[Unit]
+Description=Locust Arkiv Load Testing Master
+After=network.target
+
+[Service]
+WorkingDirectory=WORKING_DIRECTORY_PLACEHOLDER
+EnvironmentFile=ENV_FILE_PLACEHOLDER
+ExecStart=/root/.local/bin/poetry run locust -f STRESS_L3_DIR_PLACEHOLDER/stress/l3/locustfile.py,STRESS_L3_DIR_PLACEHOLDER/stress/explorer/locustfile.py --master --web-host 0.0.0.0 --class-picker
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+

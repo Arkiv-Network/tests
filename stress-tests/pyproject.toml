@@ -6,15 +6,6 @@ authors = [
     {name = "Arkiv",email = "arkiv@arkiv.network"}
 ]
 readme = "README.md"
-requires-python = ">=3.12,<4"
-dependencies = [
-    "golem-base-sdk (>=0.0.7,<0.0.8)",
-    "arkiv-sdk",
-    "locust (>=2.37.14,<3.0.0)",
-    "environs (>=14.2.0,<15.0.0)",
-    "testcontainers (>=4.12.0,<5.0.0)"
-]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -23,6 +14,20 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 package-mode = false
 
+[tool.poetry.dependencies]
+python = ">=3.12,<4"
+
+arkiv-sdk = "==1.0.0b1"
+environs = ">=14.2.0,<15.0.0"
+golem-base-sdk = ">=0.0.7,<0.0.8"
+locust = ">=2.37.14,<3.0.0"
+prometheus-client = "^0.22.1"
+testcontainers = ">=4.12.0,<5.0.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = {version = "^0.14.6"}
+
 [tool.locust]
 host = "http://localhost:8545"
 users = 5
+
