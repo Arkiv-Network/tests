@@ -157,8 +157,19 @@ class DataCenterUser(JsonRpcUser):
     def _initialize_account_and_w3(self) -> Arkiv:
         logging.info(f"Initializing account and Arkiv connection for user {self.id}")
         if self.account is None or self.w3 is None:
-            account_path = build_account_path(self.id)
-            self.account = Account.from_mnemonic(config.mnemonic, account_path=account_path)
+            # 1. Convert self.id to a string and then to bytes
+            id_bytes = str(self.id).encode('utf-8')
+
+            # 2. Hash the bytes using SHA-256 to get a deterministic 64-char hex string
+            # This ensures the key is always the same for this specific ID.
+            private_key_hex = hashlib.sha256(id_bytes).hexdigest()
+
+            # 3. Create the account using the generated hex ("0x" + 64 chars)
+            self.account = Account.from_key("0x" + private_key_hex)
+
+            # 4. Print the address
+            logging.info(f"ID: {self.id}")
+            logging.info(f"Address: {self.account.address}")
 
             self.w3 = Arkiv(
                 web3.HTTPProvider(endpoint_uri=self.client.base_url, session=self.client),
