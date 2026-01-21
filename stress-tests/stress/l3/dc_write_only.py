@@ -242,6 +242,7 @@ class DataCenterUser(JsonRpcUser):
         # Randomize some parameters per user for variety
         self.payload_size = random.randint(5000, 15000)
         self.workloads_per_node = random.randint(3, 7)
+        logging.info(f"User {self.id} initialized with seed {self.seed}, payload_size {self.payload_size}, workloads_per_node {self.workloads_per_node}")
     
     @task
     def write_node_with_workloads(self):
