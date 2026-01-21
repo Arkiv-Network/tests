@@ -1,48 +1,18 @@
 import logging
+import secrets
 import socket
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 
 
 def build_account_path(user_index: int) -> str:
-    """
-    Build account path from instance name and user index.
 
-    The instance name follows the template: arkiv-loadtest-d2-4-worker-{region}-{timestamp}-{i}
-    The instance index is extracted from the last part of the instance name.
-    The final account path uses both instance index and user index.
+    # get random instance index between 0 and 1000
+    rand1 = secrets.randbelow(64)
+    rand2 = secrets.randbelow(128)
+    rand3 = secrets.randbelow(128)
 
-    Args:
-        user_index: Locust user index (0-based)
-
-    Returns:
-        Account path in format: m/44'/60'/{instance_index}'/0/{user_index}
-
-    Raises:
-        ValueError: If instance index cannot be extracted from instance name
-    """
-    instance_name = socket.gethostname()
-
-    if not instance_name.startswith("arkiv-loadtest"):
-        logging.warning(
-            "Hostname '%s' does not match expected 'arkiv-loadtest' pattern. "
-            "Defaulting instance index to 0.",
-            instance_name,
-        )
-        instance_index = 0
-    else:
-        try:
-            parts = instance_name.split("-")
-            instance_index = int(parts[-1])
-        except (ValueError, IndexError):
-            logging.error(
-                "Cannot extract index from instance name '%s'.", instance_name
-            )
-            raise ValueError(
-                f"Cannot extract index from instance name: {instance_name}"
-            ) from None
-
-    return f"m/44'/60'/{instance_index}'/0/{user_index}"
+    return f"m/44'/60'/{rand1}'/{rand2}/{rand3}"
 
 
 def launch_image(image_to_run: str):
