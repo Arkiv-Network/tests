@@ -172,10 +172,12 @@ class DataCenterUser(JsonRpcUser):
             logging.info(f"ID: {self.id}")
             logging.info(f"Address: {self.account.address}")
 
+            logging.info("Connecting to Arkiv RPC at {}".format(self.client.base_url))
             self.w3 = Arkiv(
                 web3.HTTPProvider(endpoint_uri=self.client.base_url, session=self.client),
                 NamedAccount(name="LocalSigner", account=self.account),
             )
+            logging.info("Arkiv RPC connection initialized.")
             if not self.w3.is_connected():
                 raise RuntimeError(f"Not connected to Arkiv RPC at {self.client.base_url}")
 
