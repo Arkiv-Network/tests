@@ -179,6 +179,8 @@ class DataCenterUser(JsonRpcUser):
             if not self.w3.is_connected():
                 raise RuntimeError(f"Not connected to Arkiv RPC at {self.client.base_url}")
 
+            logging.info("Connected to Arkiv RPC at {}".format(self.client.base_url))
+
             if config.chain_env == "local":
                 self._topup_local_account()
 
