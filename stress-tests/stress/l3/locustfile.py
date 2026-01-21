@@ -7,7 +7,6 @@ import os
 import sys
 from pathlib import Path
 from datetime import timedelta
-from typing import Optional
 from itertools import combinations
 
 # Add the parent directory to Python path so we can import stress module
