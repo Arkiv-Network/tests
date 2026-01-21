@@ -7,7 +7,7 @@ and sends them to the op-geth-simulator's POST /entities endpoint.
 Usage:
     locust -f locust/write_only.py --host=http://localhost:3000
 """
-
+import logging
 import os
 import random
 import sys
@@ -155,6 +155,7 @@ class DataCenterUser(JsonRpcUser):
     block_duration_seconds: int = DEFAULT_BLOCK_DURATION_SECONDS
 
     def _initialize_account_and_w3(self) -> Arkiv:
+        logging.info(f"Initializing account and Arkiv connection for user {self.id}")
         if self.account is None or self.w3 is None:
             account_path = build_account_path(self.id)
             self.account = Account.from_mnemonic(config.mnemonic, account_path=account_path)
