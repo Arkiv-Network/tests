@@ -20,7 +20,7 @@ if str(project_root) not in sys.path:
 
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
-from arkiv.types import KEY, Operations
+from arkiv.types import ATTRIBUTES, KEY, Operations
 from arkiv.utils import to_create_op, to_query_options
 from eth_account.signers.local import LocalAccount
 from locust import task, between, events, constant_pacing
@@ -449,11 +449,31 @@ class ArkivL3User(JsonRpcUser):
         """Store a 64 KB payload (maximum limit)"""
         self._store_payload(64 * 1024)
 
+    def _ensure_unique_ids_filled(self) -> None:
+        """
+        Query Arkiv for StressedEntity entities and fill unique_ids from those
+        that have uniqueId in attributes. Does nothing if unique_ids is already non-empty.
+        """
+        if self.unique_ids:
+            return
+        w3 = self._initialize_account_and_w3()
+        query = 'ArkivEntityType="StressedEntity"'
+        result = w3.arkiv.query_entities(
+            query=query,
+            options=to_query_options(
+                fields=KEY | ATTRIBUTES, max_results_per_page=MAX_RESULTS_PER_PAGE
+            ),
+        )
+        for entity in result:
+            if entity.attributes and "uniqueId" in entity.attributes:
+                self.unique_ids.add(entity.attributes["uniqueId"])
+
     @task(1)
     def query_single_entity(self):
         """
         Query a single entity by uniqueId randomly selected from previously stored payloads.
         """
+        self._ensure_unique_ids_filled()
         if not self.unique_ids:
             logging.info(
                 f"No unique IDs available yet (user: {self.id}), skipping query_single_entity."
