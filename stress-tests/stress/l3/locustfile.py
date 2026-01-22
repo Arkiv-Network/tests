@@ -454,19 +454,30 @@ class ArkivL3User(JsonRpcUser):
         Query Arkiv for StressedEntity entities and fill unique_ids from those
         that have uniqueId in attributes. Does nothing if unique_ids is already non-empty.
         """
-        if self.unique_ids:
+        if len(self.unique_ids) > 0:
             return
+        
+        logging.info(f"Querying Arkiv for unique IDs (user: {self.id})")
+        
         w3 = self._initialize_account_and_w3()
-        query = 'ArkivEntityType="StressedEntity"'
+        # Query a smaller subset using queryPercentage range (10 for ~10% of entities)
+        query = 'ArkivEntityType="StressedEntity" && queryPercentage<=10'
+        
         result = w3.arkiv.query_entities(
             query=query,
             options=to_query_options(
                 fields=KEY | ATTRIBUTES, max_results_per_page=MAX_RESULTS_PER_PAGE
             ),
         )
+
         for entity in result:
             if entity.attributes and "uniqueId" in entity.attributes:
                 self.unique_ids.add(entity.attributes["uniqueId"])
+
+        if len(self.unique_ids) > 0:
+            logging.info(f"Queried for {len(self.unique_ids)} unique IDs (user: {self.id})")
+        else:
+            logging.info(f"No unique IDs found from query (user: {self.id})")
 
     @task(1)
     def query_single_entity(self):
@@ -474,7 +485,7 @@ class ArkivL3User(JsonRpcUser):
         Query a single entity by uniqueId randomly selected from previously stored payloads.
         """
         self._ensure_unique_ids_filled()
-        if not self.unique_ids:
+        if len(self.unique_ids) == 0:
             logging.info(
                 f"No unique IDs available yet (user: {self.id}), skipping query_single_entity."
             )
@@ -483,9 +494,11 @@ class ArkivL3User(JsonRpcUser):
         unique_id = random.choice(tuple(self.unique_ids))
 
         try:
+            logging.info(f"Querying for uniqueId: {unique_id} (user: {self.id})")
+
             w3 = self._initialize_account_and_w3()
             start_time = time.perf_counter()
-            query = f'UniqueId="{unique_id}" && ArkivEntityType="StressedEntity"'
+            query = f'uniqueId="{unique_id}" && ArkivEntityType="StressedEntity"'
             result = w3.arkiv.query_entities(
                 query=query,
                 options=to_query_options(fields=KEY, max_results_per_page=MAX_RESULTS_PER_PAGE),
