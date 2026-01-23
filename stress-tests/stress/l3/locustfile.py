@@ -19,7 +19,7 @@ if str(project_root) not in sys.path:
 
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
-from arkiv.types import KEY, Operations
+from arkiv.types import ATTRIBUTES, KEY, Operations
 from arkiv.utils import to_create_op, to_query_options
 from eth_account.signers.local import LocalAccount
 from locust import task, between, events, constant_pacing
@@ -43,7 +43,7 @@ DEFAULT_BLOCK_DURATION: int = 2
 MAX_RESULTS_PER_PAGE: int = 1_000_000_000
 
 # Default entity expiration time
-DEFAULT_EXPIRATION_TIME: timedelta = timedelta(minutes=20)
+DEFAULT_EXPIRATION_TIME: timedelta = timedelta(minutes=30)
 
 # JSON data as one-line Python string
 bigger_payload = b'{"offer":{"constraints":"(&\\n  (golem.srv.comp.expiration>1653219330118)\\n  (golem.node.debug.subnet=0987)\\n)","offerId":"7f2f81f213dd48549e080d774dbf1bc2-076a8cbae6546e5f158e5b4d3a869f25a8e2ae426279a691e7ee45315efa3d83","properties":{"golem":{"activity":{"caps":{"transfer":{"protocol":["http","https","gftp"]}}},"com":{"payment":{"debit-notes":{"accept-timeout?":240},"platform":{"erc20-rinkeby-tglm":{"address":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23"},"zksync-rinkeby-tglm":{"address":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23"}}},"pricing":{"model":{"@tag":"linear","linear":{"coeffs":[0.0002777777777777778,0.001388888888888889,0.0]}}},"scheme":"payu","usage":{"vector":["golem.usage.duration_sec","golem.usage.cpu_sec"]}},"inf":{"cpu":{"architecture":"x86_64","capabilities":["sse3","pclmulqdq","dtes64","monitor","dscpl","vmx","eist","tm2","ssse3","fma","cmpxchg16b","pdcm","pcid","sse41","sse42","x2apic","movbe","popcnt","tsc_deadline","aesni","xsave","osxsave","avx","f16c","rdrand","fpu","vme","de","pse","tsc","msr","pae","mce","cx8","apic","sep","mtrr","pge","mca","cmov","pat","pse36","clfsh","ds","acpi","mmx","fxsr","sse","sse2","ss","htt","tm","pbe","fsgsbase","adjust_msr","smep","rep_movsb_stosb","invpcid","deprecate_fpu_cs_ds","mpx","rdseed","rdseed","adx","smap","clflushopt","processor_trace","sgx","sgx_lc"],"cores":6,"model":"Stepping 10 Family 6 Model 158","threads":11,"vendor":"GenuineIntel"},"mem":{"gib":28.0},"storage":{"gib":57.276745605468754}},"node":{"debug":{"subnet":"0987"},"id":{"name":"nieznanysprawiciel-laptop-Provider-2"}},"runtime":{"capabilities":["vpn"],"name":"vm","version":"0.2.10"},"srv":{"caps":{"multi-activity":true}}}},"providerId":"0x86a269498fb5270f20bdc6fdcf6039122b0d3b23","timestamp":"2022-05-22T11:35:49.290821396Z"},"proposedSignature":"NoSignature","state":"Pending","timestamp":"2022-05-22T11:35:49.290821396Z","validTo":"2022-05-22T12:35:49.280650Z"}'
@@ -448,12 +448,43 @@ class ArkivL3User(JsonRpcUser):
         """Store a 64 KB payload (maximum limit)"""
         self._store_payload(64 * 1024)
 
+    def _ensure_unique_ids_filled(self) -> None:
+        """
+        Query Arkiv for StressedEntity entities and fill unique_ids from those
+        that have uniqueId in attributes. Does nothing if unique_ids is already non-empty.
+        """
+        if len(self.unique_ids) > 0:
+            return
+        
+        logging.info(f"Querying Arkiv for unique IDs (user: {self.id})")
+        
+        w3 = self._initialize_account_and_w3()
+        # Query a smaller subset using queryPercentage range (10 for ~10% of entities)
+        query = 'ArkivEntityType="StressedEntity" && queryPercentage<=10'
+        
+        result = w3.arkiv.query_entities(
+            query=query,
+            options=to_query_options(
+                fields=KEY | ATTRIBUTES, max_results_per_page=MAX_RESULTS_PER_PAGE
+            ),
+        )
+
+        for entity in result:
+            if entity.attributes and "uniqueId" in entity.attributes:
+                self.unique_ids.add(entity.attributes["uniqueId"])
+
+        if len(self.unique_ids) > 0:
+            logging.info(f"Queried for {len(self.unique_ids)} unique IDs (user: {self.id})")
+        else:
+            logging.info(f"No unique IDs found from query (user: {self.id})")
+
     @task(1)
     def query_single_entity(self):
         """
         Query a single entity by uniqueId randomly selected from previously stored payloads.
         """
-        if not self.unique_ids:
+        self._ensure_unique_ids_filled()
+        if len(self.unique_ids) == 0:
             logging.info(
                 f"No unique IDs available yet (user: {self.id}), skipping query_single_entity."
             )
@@ -462,9 +493,11 @@ class ArkivL3User(JsonRpcUser):
         unique_id = random.choice(tuple(self.unique_ids))
 
         try:
+            logging.info(f"Querying for uniqueId: {unique_id} (user: {self.id})")
+
             w3 = self._initialize_account_and_w3()
             start_time = time.perf_counter()
-            query = f'UniqueId="{unique_id}" && ArkivEntityType="StressedEntity"'
+            query = f'uniqueId="{unique_id}" && ArkivEntityType="StressedEntity"'
             result = w3.arkiv.query_entities(
                 query=query,
                 options=to_query_options(fields=KEY, max_results_per_page=MAX_RESULTS_PER_PAGE),
