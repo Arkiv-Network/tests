@@ -8,7 +8,6 @@ from testcontainers.core.waiting_utils import wait_for_logs
 def build_account_path(user_index: int) -> str:
 
     instance_index = os.getenv("INSTANCE_INDEX")
-    user_index = os.getenv("USER_INDEX")
 
     return f"m/44'/60'/{instance_index}'/0/{user_index}"
 
