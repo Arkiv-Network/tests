@@ -1,5 +1,5 @@
 [project]
-name = "stress-arkiv-l3"
+name = "arkiv-tests"
 version = "0.2.0"
 description = "Stress test for Arkiv L3"
 authors = [
@@ -15,14 +15,14 @@ build-backend = "poetry.core.masonry.api"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4"
+python = "^3.12"
 
 arkiv-sdk = "==1.0.0b1"
-environs = ">=14.2.0,<15.0.0"
+environs = "^14.2"
 golem-base-sdk = ">=0.0.7,<0.0.8"
-locust = ">=2.37.14,<3.0.0"
+locust = "^2.43.1"
 prometheus-client = "^0.22.1"
-testcontainers = ">=4.12.0,<5.0.0"
+testcontainers = "^4.12"
 
 [tool.poetry.group.dev.dependencies]
 ruff = {version = "^0.14.6"}
