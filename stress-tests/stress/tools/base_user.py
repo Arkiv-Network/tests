@@ -15,7 +15,7 @@ id_iterator = None
 def on_test_start_base_user(environment, **kwargs):
     """Initialize the global ID iterator when test starts."""
     global id_iterator
-    id_iterator = itertools.count(0)
+    id_iterator = itertools.count(20)
 
 
 class BaseUser(FastHttpUser):

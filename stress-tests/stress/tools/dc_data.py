@@ -262,6 +262,7 @@ def create_node(
     payload_size: int,
     block: int,
     seed: int,
+    payload_content: bytes | None = None,
     status: str | None = None,
 ) -> NodeEntity:
     """Create a single Node entity with randomized attributes.
@@ -287,8 +288,11 @@ def create_node(
     avail_hours = sample_from_distribution(rng, get_avail_hours_distribution())
     ttl_blocks = sample_ttl_blocks(rng)
 
-    # Generate random payload
-    payload = bytes(rng.getrandbits(8) for _ in range(payload_size))
+    # Generate random payload if not provided
+    if payload_content is None:
+        payload = bytes(rng.getrandbits(8) for _ in range(payload_size))
+    else:
+        payload = payload_content
     
     return NodeEntity(
         entity_key=entity_key,
@@ -314,6 +318,7 @@ def create_workload(
     payload_size: int,
     block: int,
     seed: int,
+    payload_content: bytes | None = None,
     status: str | None = None,
     assigned_node: str | None = None,
 ) -> WorkloadEntity:
@@ -347,8 +352,11 @@ def create_workload(
         else:
             assigned_node = ""
     
-    # Generate random payload
-    payload = bytes(rng.getrandbits(8) for _ in range(payload_size))
+    # Generate random payload if not provided
+    if payload_content is None:
+        payload = bytes(rng.getrandbits(8) for _ in range(payload_size))
+    else:
+        payload = payload_content
     
     return WorkloadEntity(
         entity_key=entity_key,

@@ -13,13 +13,15 @@ import random
 import sys
 import time
 from pathlib import Path
+import logging
 from typing import Any, Dict, Optional
 
 import web3
+from web3.types import TxParams
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
-from arkiv.types import Operations
-from arkiv.utils import to_create_op
+from arkiv.types import Operations, TxHash, HexStr
+from arkiv.utils import to_create_op, to_tx_params
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 from locust import constant, events, task
@@ -56,6 +58,7 @@ Account.enable_unaudited_hdwallet_features()
 
 DEFAULT_CREATOR_ADDRESS = "0x0000000000000000000000000000000000dc0001"
 DEFAULT_PAYLOAD_SIZE = 10000
+REAL_DC_PAYLOAD_CONTENT = True
 DEFAULT_DC_NUM = 1
 DEFAULT_WORKLOADS_PER_NODE = 5
 DEFAULT_BLOCK = 1  # Starting block number (will be incremented per user)
@@ -153,6 +156,12 @@ class DataCenterUser(JsonRpcUser):
     account: Optional[LocalAccount] = None
     w3: Optional[Arkiv] = None
     block_duration_seconds: int = DEFAULT_BLOCK_DURATION_SECONDS
+    real_dc_payload_content: bytes | None = None
+
+    if (REAL_DC_PAYLOAD_CONTENT):
+        # load real dc payload content from file
+        with open(f"stress/l3/sample_sys_x5.payload", "rb") as f:
+            real_dc_payload_content = f.read()
 
     def _initialize_account_and_w3(self) -> Arkiv:
         if self.account is None or self.w3 is None:
@@ -215,21 +224,6 @@ class DataCenterUser(JsonRpcUser):
                 response=None,
             )
     
-    def on_start(self):
-        """Initialize user-specific state when user starts."""
-        super().on_start()
-        self._initialize_account_and_w3()
-
-        # Generate unique seed for this user (based on user ID)
-        self.seed = self.id
-        self.node_counter = 0
-        self.workload_counter = 0
-        self.current_block = DEFAULT_BLOCK
-        
-        # Randomize some parameters per user for variety
-        self.payload_size = random.randint(5000, 15000)
-        self.workloads_per_node = random.randint(3, 7)
-    
     @task
     def write_node_with_workloads(self):
         """
@@ -246,6 +240,7 @@ class DataCenterUser(JsonRpcUser):
             dc_num=self.dc_num,
             node_num=self.node_counter,
             payload_size=self.payload_size,
+            payload_content=self.real_dc_payload_content,
             block=self.current_block,
             seed=self.seed,
         )
@@ -283,6 +278,7 @@ class DataCenterUser(JsonRpcUser):
                 workload_num=self.workload_counter,
                 nodes_per_dc=self.node_counter,  # Not used when assigned_node provided
                 payload_size=self.payload_size,
+                payload_content=self.real_dc_payload_content,
                 block=self.current_block,
                 seed=self.seed,
                 status=wl_status,
@@ -300,5 +296,20 @@ class DataCenterUser(JsonRpcUser):
 
         w3 = self._initialize_account_and_w3()
         operations = Operations(creates=create_ops)
-        self._fire_locust_request("write_node_with_workloads", lambda: w3.arkiv.execute(operations))
+        nonce = w3.eth.get_transaction_count(self.account.address)
+        logging.info(f"Sending tx by user {self.id} with nonce: {nonce}, address: {self.account.address}")
+        self._fire_locust_request("write_node_with_workloads", lambda: custom_execute(w3, operations, TxParams(nonce=nonce)))
+        logging.info(f"Tx sent by user {self.id} with nonce: {nonce}, address: {self.account.address}")
 
+
+def custom_execute(w3: Arkiv, operations: Operations, tx_params: TxParams) -> Any:
+    tx_params = to_tx_params(operations, tx_params)
+
+    # Send transaction and get tx hash
+    tx_hash_bytes = w3.eth.send_transaction(tx_params)
+    tx_hash = TxHash(HexStr(tx_hash_bytes.to_0x_hex()))
+
+    # Wait for transaction to complete and return receipt
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, poll_latency=0.5)
+
+    return tx_receipt

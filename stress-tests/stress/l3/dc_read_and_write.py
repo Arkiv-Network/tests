@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import web3
+from web3.types import TxParams
 from arkiv import Arkiv
 from arkiv.account import NamedAccount
 from arkiv.types import Operations
@@ -35,7 +36,8 @@ except Exception:
     from arkiv.types import KEY
 
     _QUERY_FIELDS = KEY
-from arkiv.utils import to_create_op, to_query_options
+from arkiv.utils import to_create_op, to_query_options, to_tx_params
+from arkiv.types import Operations, TxHash, HexStr
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 from locust import constant, events, task
@@ -75,7 +77,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
 
 # Read/Write task ratio (0.0 to 1.0, where 1.0 = 100% reads)
 # Default: 0.6 means 60% reads, 40% writes
-READ_WRITE_RATIO = float(os.getenv("READ_WRITE_RATIO", "0.6"))
+READ_WRITE_RATIO = float(os.getenv("READ_WRITE_RATIO", "0.8"))
 
 # Query mix weights for read operations (must sum to 1.0)
 QUERY_MIX = {
@@ -101,7 +103,7 @@ DEFAULT_WORKLOAD_LIMIT = 100
 
 # Write operation configuration
 DEFAULT_CREATOR_ADDRESS = "0x0000000000000000000000000000000000dc0001"
-DEFAULT_PAYLOAD_SIZE = 10000
+DEFAULT_PAYLOAD_SIZE = 100
 DEFAULT_DC_NUM = 1
 DEFAULT_WORKLOADS_PER_NODE = 5
 DEFAULT_BLOCK = 1  # Starting block number (will be incremented per user)
@@ -438,10 +440,11 @@ class DataCenterReadWriteUser(JsonRpcUser):
 
         w3 = self._initialize_account_and_w3()
         operations = Operations(creates=create_ops)
+        nonce = w3.eth.get_transaction_count(self.account.address)
         self._fire_locust_request(
-            "write_node_with_workloads", lambda: w3.arkiv.execute(operations)
+            "write_node_with_workloads", lambda: custom_execute(w3, operations, TxParams(nonce=nonce))
         )
-    
+
     # =========================================================================
     # Read Tasks
     # =========================================================================
@@ -609,3 +612,15 @@ def on_test_start(environment, **kwargs):
     print("Sample data will be loaded from Arkiv on first user start.")
     print()
 
+
+def custom_execute(w3: Arkiv, operations: Operations, tx_params: TxParams) -> Any:
+        tx_params = to_tx_params(operations, tx_params)
+
+        # Send transaction and get tx hash
+        tx_hash_bytes = w3.eth.send_transaction(tx_params)
+        tx_hash = TxHash(HexStr(tx_hash_bytes.to_0x_hex()))
+
+        # Wait for transaction to complete and return receipt
+        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash, poll_latency=0.5)
+
+        return tx_receipt

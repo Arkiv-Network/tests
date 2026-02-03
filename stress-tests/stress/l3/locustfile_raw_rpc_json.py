@@ -276,11 +276,11 @@ class GolemBaseUser(FastHttpUser):
             self.client.base_url,
             json={
                 "jsonrpc": "2.0",
-                "method": "golembase_queryEntities",
+                "method": "arkiv_query",
                 "params": ['GolemBaseMarketplace="Offer"'],
                 "id": 1,
             },
-            name="golembase_getEntityCount",
+            name="arkiv_query",
         )
 
         if response.ok:
