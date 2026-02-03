@@ -25,6 +25,11 @@ def build_account_path(user_index: int) -> str:
     Raises:
         ValueError: If instance index cannot be extracted from instance name
     """
+    instance_index = int(os.getenv("INSTANCE_INDEX", "-1"))
+    if instance_index != -1:
+        return f"m/44'/60'/{instance_index}'/0/{user_index}"
+
+
     instance_name = socket.gethostname()
 
     if not instance_name.startswith("arkiv-loadtest"):
